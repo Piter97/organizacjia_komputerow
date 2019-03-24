@@ -1,0 +1,269 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+        html{
+          display: table;
+          margin: auto;
+        }
+	body{
+	  background: #CC7A00;
+          background-image:url('http://localhost/kawa.png');
+          background-repeat: no-repeat;
+          background-attachment: fixed;
+          background-position: center;
+	  background-size: 700px;
+	  font-family: Arial;
+	  text-align: center;
+	}
+        table, td{
+          border: 1px solid #666;
+          text-align: center;
+          background: white;
+        }
+        #setHour, #setMinute{
+          width: 50px;
+        }
+        #deleteHourIndex{
+          width:40px;
+        }
+
+  </style>
+</head>
+
+<body>
+  <div id="main">
+    <h1>TEA TIME APP</h1>
+    <div>
+      <p>
+        <form>
+          <input id="budzik" type="radio" name="time"> Budzik
+          <input id="swiatlo1" type="radio" name="time"> Światło_1
+          <input id="swiatlo2" type="radio" name="time"> Światło_2
+        </form>
+      </p>
+    </div>
+    <div>
+      <p><input id="setHour" type="text" placeholder="hour" maxlength="2" /> : <input id="setMinute" type="text" placeholder="minute" maxlength="2" /> <button onclick="saveHourFunction()" id="saveButton">save</button></p>
+
+      <p><input id="deleteHourIndex" type="text" placeholder="index" maxlength="2"/> <button id="deleteButton" onclick="deleteHourFunction()">delete</button></p>
+
+      <table id="myTable" style="width:10%"; align="center">
+        <tr>
+          <td>Index</td>
+          <td>Time</td>
+          <td>Type</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="text/javascript">
+	
+	//obiekt socket powiązany z adresem IP serwera (w tym wypadku RPI3) oraz portem 8080
+    var socket = io.connect('http://192.168.8.59:8080');
+    var timeIndex = 1;
+
+    var input1 = document.getElementById("setHour");
+	
+	//jezeli użytkownik znajduje się w miejscu gdzie ustawia się godzinę to za pomocą ENTER przeskoczy do miejsca z wypełnianiem minuty
+    input1.addEventListener("keyup", function(event)
+    {
+      event.preventDefault();
+      if(event.keyCode == 13)
+      {
+         document.getElementById("setMinute").focus();
+      }
+    });
+
+	//jezeli użytkownik znajduje się w miejscu gdzie ustawia się minuty to za pomocą ENTER zapisze plik (o ile spełnia waruni funkcji wywoływanej przyciskiem)
+    var input2 = document.getElementById("setMinute");
+    input2.addEventListener("keyup", function(event)
+    {
+      event.preventDefault();
+      if(event.keyCode == 13)
+      {
+        document.getElementById("saveButton").onclick();
+      }
+    });
+
+	//funkcja wywoływana za pomocą ciśnięcia przycisku "SAVE"
+    function saveHourFunction()
+    {
+      var msg1 = document.getElementById("setHour").value;
+      var msg2 = document.getElementById("setMinute").value;
+
+	  //sprawdzanie poprawnosci warunkow wpisania danych dla typu "budzik"
+      if(document.getElementById("budzik").checked === true)
+      {
+        if((msg1 === '00' || (msg1 <= 24 && msg1 >= 0)) && (msg2 === '00' || (msg2 <= 59 && msg2 >= 0)) && msg1 != '' && msg2 != '' )
+        {
+          var table = document.getElementById("myTable");
+          var row = table.insertRow();
+          var cell_1 = row.insertCell(0);
+          var cell_2 = row.insertCell(1);
+          var cell_3 = row.insertCell(2);
+          var txt = "";
+          var i; 
+          var j;
+          var buf = [];
+		  
+		  //dodanie nowego elementu to tablicy
+          cell_1.innerHTML = timeIndex + ".";
+          cell_2.innerHTML = msg1 + ':' + msg2;
+          cell_3.innerHTML = "b";
+          timeIndex++;
+
+          //wysłanie na server nowej tablicy 
+          for(i = 1; i < timeIndex; i++)
+          {                                       //HH:MM,type;
+            txt = txt + document.getElementById("myTable").rows[i].cells[1].innerHTML + "," + document.getElementById("myTable").rows[i].cells[2].innerHTML + ";";
+          }
+
+		  //wyslanie powiadomien na server
+          socket.emit('hourTime', msg1);
+          socket.emit('minuteTime', msg2);
+          socket.emit('send', txt);
+        }
+        else
+        {
+          alert('You set the wrong time!');
+          socket.emit('errorTime');
+        }
+      }  
+
+	  //sprawdzanie poprawnosci warunkow wpisania danych dla typu "swiatlo1"
+      if(document.getElementById("swiatlo1").checked === true)
+      {
+        if((msg1 === '00' || (msg1 <= 24 && msg1 >= 0)) && (msg2 === '00' || (msg2 <= 59 && msg2 >= 0)) && msg1 != '' && msg2 != '')
+        {
+          var table = document.getElementById("myTable");
+          var row = table.insertRow();
+          var cell_1 = row.insertCell(0);
+          var cell_2 = row.insertCell(1);
+          var cell_3 = row.insertCell(2);
+          var txt = "";
+          var i; 
+          var j;
+          var buf = [];
+          cell_1.innerHTML = timeIndex + ".";
+          cell_2.innerHTML = msg1 + ':' + msg2;
+          cell_3.innerHTML = "s1";
+          timeIndex++;
+
+          //send to server new table
+          for(i = 1; i < timeIndex; i++)
+          {                                             //HH:MM,type;
+            txt = txt + document.getElementById("myTable").rows[i].cells[1].innerHTML + "," + document.getElementById("myTable").rows[i].cells[2].innerHTML + ";";
+          }
+
+          socket.emit('hourTime', msg1);
+          socket.emit('minuteTime', msg2);
+          socket.emit('send', txt);
+        }
+        else
+        {
+          alert('You set the wrong time!');
+          socket.emit('errorTime');
+        }
+      }  
+	  
+	  //sprawdzanie poprawnosci warunkow wpisania danych dla typu "swiatlo2"
+      if(document.getElementById("swiatlo2").checked === true)
+      {
+        if((msg1 === '00' || (msg1 <= 24 && msg1 >= 0)) && (msg2 === '00' || (msg2 <= 59 && msg2 >= 0)) && msg1 != '' && msg2 != '')
+        {
+          var table = document.getElementById("myTable");
+          var row = table.insertRow();
+          var cell_1 = row.insertCell(0);
+          var cell_2 = row.insertCell(1);
+          var cell_3 = row.insertCell(2);
+          var txt = "";
+          var i; 
+          var j;
+          var buf = [];
+          cell_1.innerHTML = timeIndex + ".";
+          cell_2.innerHTML = msg1 + ':' + msg2;
+          cell_3.innerHTML = "s2";
+          timeIndex++;
+
+          //send to server new table
+          for(i = 1; i < timeIndex; i++)
+          {                                               //HH:MM,type;
+            txt = txt + document.getElementById("myTable").rows[i].cells[1].innerHTML + "," + document.getElementById("myTable").rows[i].cells[2].innerHTML + ";";
+          }
+
+          socket.emit('send', txt);
+        }
+        else
+        {
+          alert('You set the wrong time!');
+          socket.emit('errorTime');
+        }
+      }  
+    }
+
+	//usuwanie ustawionej godziny po indeksie
+    function deleteHourFunction()
+    {
+      var index = document.getElementById("deleteHourIndex").value;
+      if (index >= 1 && index < timeIndex)
+      {
+        indexRow = document.getElementsByTagName("tr");
+        var txt = "";
+        var i;
+        var j;
+		
+		//usuwanie elementu i odpowiednie przesuwanie pozostalych
+        for(i = 1; i < timeIndex; i++)
+        {
+          if(indexRow[i].rowIndex == index)
+          {
+            document.getElementById("myTable").deleteRow(index);
+            timeIndex--;
+            indexCell = document.getElementsByTagName("td");
+            //przpisanie nowych wartosci indeksów po usunięciu jednego z nich 
+            for(j = index; j < timeIndex; j++)
+            {
+              indexCell[j*3].innerHTML = j + ".";
+            }
+          }
+        }
+
+        //wyslanie wiadomosci na serwer
+        for(i = 1; i < timeIndex; i++)
+        {
+            txt = txt + document.getElementById("myTable").rows[i].cells[1].innerHTML + "," +document.getElementById("myTable").rows[i].cells[2].innerHTML + ";";
+        }
+        socket.emit('send', txt);
+      }
+      else
+        alert("Index doesn't exist");
+    }
+
+//==================================================================================
+
+	//odebranie wiadomosci, za każdym odświeżaniem strony, od serera który wysyła aktualną tablicę ustawionych godzin, które uprzednio zostały zapisane do pliku *.txt
+    socket.on('fromFile',function(readData)
+    {
+      var table = document.getElementById("myTable");
+      var i = 0;
+      var j = 1;
+	  //wypelnianie tablic godzinami z pliku
+      for(timeIndex = 1; timeIndex < (readData.length/2 + 1); timeIndex++)
+      {
+        var row = table.insertRow();
+        var cell_1 = row.insertCell(0);
+        cell_1.innerHTML = timeIndex + ".";
+        var cell_2 = row.insertCell(1);
+        var cell_3 = row.insertCell(2);
+        cell_2.innerHTML = readData[i];
+        cell_3.innerHTML = readData[j];
+        i = i + 2;
+        j = j + 2;
+      }
+    });
+
+  </script>
+</body>
+</html>
